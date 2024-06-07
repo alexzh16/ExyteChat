@@ -4,7 +4,7 @@
 
 import SwiftUI
 
-struct AvatarView: View {
+struct ExyteChatAvatarView: View {
 
     let url: URL?
     let avatarSize: CGFloat
@@ -24,7 +24,7 @@ struct AvatarView: View {
 
 struct AvatarView_Previews: PreviewProvider {
     static var previews: some View {
-        AvatarView(
+        ExyteChatAvatarView(
             url: URL(string: "https://placeimg.com/640/480/sepia"),
             avatarSize: 32
         )

@@ -174,7 +174,7 @@ struct MessageView: View {
     var avatarView: some View {
         Group {
             if showAvatar {
-                AvatarView(url: message.user.avatarURL, avatarSize: avatarSize)
+                ExyteChatAvatarView(url: message.user.avatarURL, avatarSize: avatarSize)
                     .contentShape(Circle())
                     .onTapGesture {
                         tapAvatarClosure?(message.user, message.id)
@@ -294,8 +294,8 @@ extension View {
 
 #if DEBUG
 struct MessageView_Preview: PreviewProvider {
-    static let stan = User(id: "stan", name: "Stan", avatarURL: nil, isCurrentUser: false)
-    static let john = User(id: "john", name: "John", avatarURL: nil, isCurrentUser: true)
+    static let stan = ExyteChatUser(id: "stan", name: "Stan", avatarURL: nil, isCurrentUser: false)
+    static let john = ExyteChatUser(id: "john", name: "John", avatarURL: nil, isCurrentUser: true)
 
     static private var shortMessage = "Hi, buddy!"
     static private var longMessage = "Hello hello hello hello hello hello hello hello hello hello hello hello hello\n hello hello hello hello d d d d d d d d"

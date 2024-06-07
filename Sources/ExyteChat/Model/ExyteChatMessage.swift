@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-public struct Message: Identifiable, Hashable {
+public struct ExyteChatMessage: Identifiable, Hashable {
 
     public enum Status: Equatable, Hashable {
         case sending
@@ -45,7 +45,7 @@ public struct Message: Identifiable, Hashable {
     }
 
     public var id: String
-    public var user: User
+    public var user: ExyteChatUser
     public var status: Status?
     public var createdAt: Date
 
@@ -53,9 +53,10 @@ public struct Message: Identifiable, Hashable {
     public var attachments: [Attachment]
     public var recording: Recording?
     public var replyMessage: ReplyMessage?
-
+//    public var replyToMessageId: String?
+    
     public init(id: String,
-                user: User,
+                user: ExyteChatUser,
                 status: Status? = nil,
                 createdAt: Date = Date(),
                 text: String = "",
@@ -75,9 +76,9 @@ public struct Message: Identifiable, Hashable {
 
     public static func makeMessage(
         id: String,
-        user: User,
+        user: ExyteChatUser,
         status: Status? = nil,
-        draft: DraftMessage) async -> Message {
+        draft: DraftMessage) async -> ExyteChatMessage {
             let attachments = await draft.medias.asyncCompactMap { media -> Attachment? in
                 guard let thumbnailURL = await media.getThumbnailURL() else {
                     return nil
@@ -94,23 +95,23 @@ public struct Message: Identifiable, Hashable {
                 }
             }
 
-            return Message(id: id, user: user, status: status, createdAt: draft.createdAt, text: draft.text, attachments: attachments, recording: draft.recording, replyMessage: draft.replyMessage)
+            return ExyteChatMessage(id: id, user: user, status: status, createdAt: draft.createdAt, text: draft.text, attachments: attachments, recording: draft.recording, replyMessage: draft.replyMessage)
         }
 }
 
-extension Message {
+extension ExyteChatMessage {
     var time: String {
         DateFormatter.timeFormatter.string(from: createdAt)
     }
 }
 
-extension Message: Equatable {
+extension ExyteChatMessage: Equatable {
     public static func == (lhs: Message, rhs: Message) -> Bool {
         lhs.id == rhs.id && lhs.status == rhs.status
     }
 }
 
-public struct Recording: Codable, Hashable {
+public struct ExyteChatRecording: Codable, Hashable {
     public var duration: Double
     public var waveformSamples: [CGFloat]
     public var url: URL?
@@ -128,14 +129,14 @@ public struct ReplyMessage: Codable, Identifiable, Hashable {
     }
 
     public var id: String
-    public var user: User
+    public var user: ExyteChatUser
 
     public var text: String
     public var attachments: [Attachment]
     public var recording: Recording?
 
     public init(id: String,
-                user: User,
+                user: ExyteChatUser,
                 text: String = "",
                 attachments: [Attachment] = [],
                 recording: Recording? = nil) {
@@ -147,12 +148,12 @@ public struct ReplyMessage: Codable, Identifiable, Hashable {
         self.recording = recording
     }
 
-    func toMessage() -> Message {
-        Message(id: id, user: user, text: text, attachments: attachments, recording: recording)
+    func toMessage() -> ExyteChatMessage {
+        ExyteChatMessage(id: id, user: user, text: text, attachments: attachments, recording: recording)
     }
 }
 
-public extension Message {
+public extension ExyteChatMessage {
 
     func toReplyMessage() -> ReplyMessage {
         ReplyMessage(id: id, user: user, text: text, attachments: attachments, recording: recording)

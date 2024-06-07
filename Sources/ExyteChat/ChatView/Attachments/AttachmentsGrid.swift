@@ -21,7 +21,7 @@ struct AttachmentsGrid: View {
         if toShow.count > maxImages {
             toShow = attachments.prefix(maxImages).map({ $0 })
             hidden = "+\(attachments.count - (maxImages - 1))"
-            showMoreAttachmentId = attachments[safe: (maxImages - 1)]?.id
+            showMoreAttachmentId = attachments[(maxImages - 1)].id
         } else {
             hidden = nil
             showMoreAttachmentId = nil

@@ -36,7 +36,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
         Binding<String>, InputViewAttachments, InputViewState, InputViewStyle, @escaping (InputViewAction) -> Void, ()->()) -> InputViewContent)
 
     /// User and MessageId
-    public typealias TapAvatarClosure = (User, String) -> ()
+    public typealias TapAvatarClosure = (ExyteChatUser, String) -> ()
 
     @Environment(\.safeAreaInsets) private var safeAreaInsets
     @Environment(\.chatTheme) private var theme
@@ -285,17 +285,34 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
             menuButtonsSize: $menuButtonsSize,
             alignment: row.message.user.isCurrentUser ? .right : .left,
             leadingPadding: avatarSize + MessageView.horizontalAvatarPadding * 2,
-            trailingPadding: MessageView.statusViewSize + MessageView.horizontalStatusPadding) {
-                ChatMessageView(viewModel: viewModel, messageBuilder: messageBuilder, row: row, chatType: type, avatarSize: avatarSize, tapAvatarClosure: nil, messageUseMarkdown: messageUseMarkdown, isDisplayingMessageMenu: true, showMessageTimeView: showMessageTimeView, messageFont: messageFont)
-                    .onTapGesture {
-                        hideMessageMenu()
-                    }
-            } onAction: { action in
+            trailingPadding: MessageView.statusViewSize + MessageView.horizontalStatusPadding,
+            mainButton: {
+                ChatMessageView(
+                    viewModel: viewModel,
+                    messageBuilder: messageBuilder,
+                    row: row,
+                    chatType: type,
+                    avatarSize: avatarSize,
+                    tapAvatarClosure: nil,
+                    messageUseMarkdown: messageUseMarkdown,
+                    isDisplayingMessageMenu: true,
+                    showMessageTimeView: showMessageTimeView,
+                    messageFont: messageFont
+                )
+                .onTapGesture {
+                    hideMessageMenu()
+                }
+            },
+            onAction: { action in
                 onMessageMenuAction(row: row, action: action)
-            }
-            .frame(height: menuButtonsSize.height + (cellFrames[row.id]?.height ?? 0), alignment: .top)
-            .opacity(menuCellOpacity)
+            },
+            messageText: row.message.text,
+            messageImageURL: row.message.attachments.first(where: { $0.type == .image })?.full
+        )
+        .frame(height: menuButtonsSize.height + (cellFrames[row.id]?.height ?? 0), alignment: .top)
+        .opacity(menuCellOpacity)
     }
+
 
     func showMessageMenu(_ cellFrame: CGRect) {
         DispatchQueue.main.async {
@@ -353,6 +370,14 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
         case .reply:
             inputViewModel.attachments.replyMessage = row.message.toReplyMessage()
             globalFocusState.focus = .uuid(inputFieldId)
+        case .copy:
+            if !row.message.text.isEmpty {
+                UIPasteboard.general.string = row.message.text
+            } else if let imageAttachment = row.message.attachments.first(where: { $0.type == .image }) {
+                if let imageData = try? Data(contentsOf: imageAttachment.full), let image = UIImage(data: imageData) {
+                    UIPasteboard.general.image = image
+                }
+            }
         }
     }
 }
@@ -378,26 +403,28 @@ private extension ChatView {
         return result
     }
 
-    static func wrapMessages(_ messages: [Message]) -> [MessageRow] {
-        messages
+    static func wrapMessages(_ messages: [ExyteChatMessage]) -> [MessageRow] {
+        guard !messages.isEmpty else { return [] }
+
+        return messages
             .enumerated()
-            .map {
-                let nextMessageExists = messages[safe: $0.offset + 1] != nil
-                let nextMessageIsSameUser = messages[safe: $0.offset + 1]?.user.id == $0.element.user.id
-                let prevMessageIsSameUser = messages[safe: $0.offset - 1]?.user.id == $0.element.user.id
+            .map { index, message in
+                let nextMessageExists = index + 1 < messages.count
+                let nextMessageIsSameUser = nextMessageExists && messages[index + 1].user.id == message.user.id
+                let prevMessageIsSameUser = index - 1 >= 0 && messages[index - 1].user.id == message.user.id
 
                 let position: PositionInGroup
-                if nextMessageExists, nextMessageIsSameUser, prevMessageIsSameUser {
+                if nextMessageExists && nextMessageIsSameUser && prevMessageIsSameUser {
                     position = .middle
-                } else if !nextMessageExists || !nextMessageIsSameUser, !prevMessageIsSameUser {
+                } else if !nextMessageExists || (!nextMessageIsSameUser && !prevMessageIsSameUser) {
                     position = .single
-                } else if nextMessageExists, nextMessageIsSameUser {
+                } else if nextMessageExists && nextMessageIsSameUser {
                     position = .first
                 } else {
                     position = .last
                 }
 
-                return MessageRow(message: $0.element, positionInGroup: position)
+                return MessageRow(message: message, positionInGroup: position)
             }
             .reversed()
     }

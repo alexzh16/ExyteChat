@@ -8,9 +8,11 @@
 import SwiftUI
 import FloatingButton
 import enum FloatingButton.Alignment
+import UIKit // Required for UIPasteboard
 
 enum MessageMenuAction {
     case reply
+    case copy
 }
 
 struct MessageMenu<MainButton: View>: View {
@@ -24,10 +26,13 @@ struct MessageMenu<MainButton: View>: View {
     var trailingPadding: CGFloat
     var mainButton: () -> MainButton
     var onAction: (MessageMenuAction) -> ()
+    var messageText: String
+    var messageImageURL: URL?
 
     var body: some View {
         FloatingButton(mainButtonView: mainButton().allowsHitTesting(false), buttons: [
-            menuButton(title: "Reply", icon: theme.images.messageMenu.reply, action: .reply)
+            menuButton(title: "Reply", icon: theme.images.messageMenu.reply, action: .reply),
+            menuButton(title: "Copy", icon: Image(systemName: "doc.on.doc"), action: .copy)
         ], isOpen: $isShowingMenu)
         .straight()
         //.mainZStackAlignment(.top)
@@ -64,6 +69,13 @@ struct MessageMenu<MainButton: View>: View {
             .fixedSize()
             .onTapGesture {
                 onAction(action)
+                if action == .copy {
+                    if let url = messageImageURL, let imageData = try? Data(contentsOf: url), let image = UIImage(data: imageData) {
+                        UIPasteboard.general.image = image
+                    } else {
+                        UIPasteboard.general.string = messageText
+                    }
+                }
             }
 
             if alignment == .right {
