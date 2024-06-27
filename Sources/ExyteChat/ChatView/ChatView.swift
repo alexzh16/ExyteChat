@@ -8,7 +8,8 @@
 import SwiftUI
 import FloatingButton
 import SwiftUIIntrospect
-import ExyteMediaPicker
+//import ExyteMediaPicker
+import UniformTypeIdentifiers
 
 public typealias MediaPickerParameters = SelectionParamsHolder
 
@@ -16,8 +17,15 @@ public enum ChatType {
     case chat // input view and the latest message at the bottom
     case comments // input view and the latest message on top
 }
+public enum AttachmentOption {
+    case photo
+    case camera
+    case file
+}
 
 public struct ChatView<MessageContent: View, InputViewContent: View>: View {
+    @Namespace private var scrollViewNamespace
+    @State private var scrollViewProxy: ScrollViewProxy? = nil
 
     /// To build a custom message view use the following parameters passed by this closure:
     /// - message containing user, attachments, etc.
@@ -92,7 +100,12 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
     @State private var menuBgOpacity: CGFloat = 0
     @State private var menuCellOpacity: CGFloat = 0
     @State private var menuScrollView: UIScrollView?
-
+    
+    @State private var isShowingSaveSuccess = false
+    @State private var saveSuccessMessage = ""
+    @State private var isShowingSnackbar = false
+    @State private var snackbarMessage = ""
+    
     public init(messages: [Message],
                 didSendMessage: @escaping (DraftMessage) -> Void,
                 messageBuilder: @escaping MessageBuilderClosure,
@@ -126,7 +139,31 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
                         .padding(8)
                     }
                 }
-
+                .overlay(
+                    VStack {
+                        if isShowingSnackbar {
+                            ZStack {
+                                Color.black.opacity(0.7)
+                                    .edgesIgnoringSafeArea(.all)
+                                    .onTapGesture {
+                                        withAnimation{hideSnackbar()}
+                                    }
+                                
+                                VStack {
+                                    Text(snackbarMessage)
+                                        .foregroundColor(.white)
+                                        .padding()
+                                }
+                            }
+                            .transition(.move(edge: .bottom))
+                            .onAppear {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                    withAnimation {hideSnackbar()}
+                                }
+                            }
+                        }
+                    }
+                )
                 inputView
 
             case .comments:
@@ -158,6 +195,12 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
             AttachmentsEditor(inputViewModel: inputViewModel, inputViewBuilder: inputViewBuilder, chatTitle: chatTitle, messageUseMarkdown: messageUseMarkdown, orientationHandler: orientationHandler, mediaPickerSelectionParameters: mediaPickerSelectionParameters, availableInput: availablelInput)
                 .environmentObject(globalFocusState)
         }
+        .fullScreenCover(isPresented: $inputViewModel.showDocumentPicker) {
+            AttachmentsEditor(inputViewModel: inputViewModel, inputViewBuilder: inputViewBuilder, chatTitle: chatTitle, messageUseMarkdown: messageUseMarkdown, orientationHandler: orientationHandler, mediaPickerSelectionParameters: mediaPickerSelectionParameters, availableInput: availablelInput)
+                .environmentObject(globalFocusState)
+                .transition(.move(edge: .bottom)) // Плавное появление снизу
+                .animation(.easeInOut, value: inputViewModel.showDocumentPicker)
+        }
         .onChange(of: inputViewModel.showPicker) {
             if $0 {
                 globalFocusState.focus = nil
@@ -165,7 +208,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
         }
         .environmentObject(keyboardState)
     }
-
+    
     var waitingForNetwork: some View {
         VStack {
             Rectangle()
@@ -184,25 +227,29 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
         }
         .padding(.top, 8)
     }
-
     @ViewBuilder
     var list: some View {
-        UIList(viewModel: viewModel,
-               paginationState: paginationState,
-               isScrolledToBottom: $isScrolledToBottom,
-               shouldScrollToTop: $shouldScrollToTop,
-               messageBuilder: messageBuilder, 
-               type: type,
-               showDateHeaders: showDateHeaders,
-               avatarSize: avatarSize,
-               showMessageMenuOnLongPress: showMessageMenuOnLongPress,
-               tapAvatarClosure: tapAvatarClosure,
-               messageUseMarkdown: messageUseMarkdown,
-               showMessageTimeView: showMessageTimeView,
-               messageFont: messageFont,
-               sections: sections,
-               ids: ids
-        )
+        ScrollViewReader { proxy in
+            UIList(viewModel: viewModel,
+                   paginationState: paginationState,
+                   isScrolledToBottom: $isScrolledToBottom,
+                   shouldScrollToTop: $shouldScrollToTop,
+                   messageBuilder: messageBuilder,
+                   type: type,
+                   showDateHeaders: showDateHeaders,
+                   avatarSize: avatarSize,
+                   showMessageMenuOnLongPress: showMessageMenuOnLongPress,
+                   tapAvatarClosure: tapAvatarClosure,
+                   messageUseMarkdown: messageUseMarkdown,
+                   showMessageTimeView: showMessageTimeView,
+                   messageFont: messageFont,
+                   sections: sections,
+                   ids: ids
+            )
+            .onAppear {
+                scrollViewProxy = proxy
+            }
+        }
         .onStatusBarTap {
             shouldScrollToTop()
         }
@@ -212,7 +259,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
                     Color.white
                         .opacity(menuBgOpacity)
                         .ignoresSafeArea(.all)
-
+                    
                     if needsScrollView {
                         ScrollView {
                             messageMenu(row)
@@ -257,7 +304,8 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
             }
         }
     }
-
+    
+    @ViewBuilder
     var inputView: some View {
         Group {
             if let inputViewBuilder = inputViewBuilder {
@@ -299,6 +347,16 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
                     showMessageTimeView: showMessageTimeView,
                     messageFont: messageFont
                 )
+                .frame(width: UIScreen.main.bounds.width - 32)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, isShowingMenu ? 0 : 0) // Adjust bottom padding if menu is shown
+                    .onAppear {
+                        DispatchQueue.main.async {
+                            if let frame = cellFrames[row.id] {
+                                showMessageMenu(frame)
+                            }
+                        }
+                    }
                 .onTapGesture {
                     hideMessageMenu()
                 }
@@ -307,12 +365,30 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
                 onMessageMenuAction(row: row, action: action)
             },
             messageText: row.message.text,
-            messageImageURL: row.message.attachments.first(where: { $0.type == .image })?.full
+            messageImageURL: row.message.attachments.first(where: { $0.type == .image })?.full,
+            messageDocumentURL: row.message.attachments.first(where: { $0.type == .files })?.full,
+            onSaveSuccess: {
+                showSaveSuccessMessage()
+            }
         )
         .frame(height: menuButtonsSize.height + (cellFrames[row.id]?.height ?? 0), alignment: .top)
         .opacity(menuCellOpacity)
+        
     }
-
+    
+    func showSnackbar(message: String) {
+        snackbarMessage = message
+        isShowingSnackbar = true
+    }
+    
+    func hideSnackbar() {
+        isShowingSnackbar = false
+    }
+    
+    func showSaveSuccessMessage() {
+            saveSuccessMessage = "Document saved successfully"
+            withAnimation{showSnackbar(message: saveSuccessMessage)}
+        }
 
     func showMessageMenu(_ cellFrame: CGRect) {
         DispatchQueue.main.async {
@@ -370,6 +446,9 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
         case .reply:
             inputViewModel.attachments.replyMessage = row.message.toReplyMessage()
             globalFocusState.focus = .uuid(inputFieldId)
+            if let replyToMessageId = row.message.replyMessage?.id {
+                scrollToMessage(withId: replyToMessageId)
+            }
         case .copy:
             if !row.message.text.isEmpty {
                 UIPasteboard.general.string = row.message.text
@@ -378,6 +457,169 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
                     UIPasteboard.general.image = image
                 }
             }
+        case .saveImageToAlbum:
+            if let imageAttachment = row.message.attachments.first(where: { $0.type == .image }) {
+                saveImageToAlbum(imageAttachment.full)
+            }
+        case .saveImageToDevice:
+            if let documentAttachment = row.message.attachments.first(where: { $0.type == .files }) {
+                saveDocument(url: documentAttachment.full)
+            }
+        case .saveDocument:
+            if let documentAttachment = row.message.attachments.first(where: { $0.type == .files }) {
+                saveDocument(url: documentAttachment.full)
+            }
+            break
+        case .saveText:
+            // Handle saving text logic if needed
+            break
+        case .share:
+            var itemsToShare = [Any]()
+            if let attachment = row.message.attachments.first {
+                itemsToShare.append(attachment.full)
+                downloadAndShareFiles(from: attachment.full)
+            }
+            globalFocusState.focus = .uuid(inputFieldId)
+        }
+    }
+    
+    func scrollToMessage(withId id: String) {
+        if let scrollViewProxy = scrollViewProxy {
+            scrollViewProxy.scrollTo(id, anchor: .center)
+        }
+    }
+    
+    func downloadAndShareFile(from url: URL) {
+        let session = URLSession.shared
+        let downloadTask = session.downloadTask(with: url) { (location, response, error) in
+            guard let location = location, error == nil else {
+                print("Download error: \(error?.localizedDescription ?? "Unknown error")")
+                return
+            }
+            
+            let fileManager = FileManager.default
+            let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let destinationURL = documentsDirectory.appendingPathComponent(url.lastPathComponent)
+            
+            do {
+                // Удалить файл, если он уже существует
+                if fileManager.fileExists(atPath: destinationURL.path) {
+                    try fileManager.removeItem(at: destinationURL)
+                }
+                // Переместить загруженный файл
+                try fileManager.moveItem(at: location, to: destinationURL)
+                //  поделиться файлом
+                DispatchQueue.main.async {
+                    self.share(item: [destinationURL])
+                }
+            } catch {
+                print("File move error: \(error.localizedDescription)")
+            }
+        }
+        downloadTask.resume()
+    }
+    
+    func downloadAndShareFiles(from url: URL) {
+        let task = URLSession.shared.downloadTask(with: url) { (tempURL, response, error) in
+            guard let tempURL = tempURL, error == nil else {
+                print("Download error: \(String(describing: error))")
+                return
+            }
+            
+            let fileManager = FileManager.default
+            let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let destinationURL = documentsDirectory.appendingPathComponent(url.lastPathComponent)
+            
+            do {
+                // Удалить файл, если он уже существует
+                if fileManager.fileExists(atPath: destinationURL.path) {
+                    try fileManager.removeItem(at: destinationURL)
+                }
+                // Переместить загруженный файл
+                try fileManager.moveItem(at: tempURL, to: destinationURL)
+                print("File moved to: \(destinationURL.path)")
+                
+                // Здесь вы можете выполнить последующие действия, например, поделиться файлом
+                DispatchQueue.main.async {
+                    self.share(item: [destinationURL])
+                }
+            } catch {
+                print("File move error: \(error.localizedDescription)")
+            }
+        }
+        task.resume()
+    }
+
+    public func share(item: [Any]) {
+        let activityViewController = UIActivityViewController(activityItems: item, applicationActivities: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootViewController = window.rootViewController {
+            
+            var topController = rootViewController
+            while let presentedViewController = topController.presentedViewController {
+                topController = presentedViewController
+            }
+            
+            topController.present(activityViewController, animated: true, completion: nil)
+        }
+    }
+    
+    func saveDocument(url: URL) {
+        let documentPicker = UIDocumentPickerViewController(forExporting: [url])
+//        documentPicker.delegate = context.coordinator
+        documentPicker.modalPresentationStyle = .formSheet
+        if let topController = UIApplication.shared.windows.first?.rootViewController {
+            topController.present(documentPicker, animated: true, completion: nil)
+        }
+    }
+    
+    // Добавьте координатор для обработки делегата UIDocumentPickerViewController
+    class Coordinator: NSObject, UIDocumentPickerDelegate, UINavigationControllerDelegate {
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard let url = urls.first else { return }
+            // Здесь можно обработать сохранение документа по выбранному пути
+            print("Document saved at: \(url)")
+        }
+        
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            print("Document picker was cancelled")
+        }
+    }
+    
+    private func saveImageToAlbum(_ imageURL: URL?) {
+        guard let imageURL = imageURL else { return }
+        // Implement logic to save image to album
+        // Example:
+        // PHPhotoLibrary.shared().performChanges {
+        //     let assetCreationRequest = PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: imageURL)
+        //     let assetPlaceholder = assetCreationRequest.placeholderForCreatedAsset
+        //     let albumChangeRequest = PHAssetCollectionChangeRequest(for: album)
+        //     albumChangeRequest?.addAssets([assetPlaceholder] as NSFastEnumeration)
+        // } completionHandler: { success, error in
+        //     if success {
+        //         print("Image saved to album successfully.")
+        //     } else {
+        //         print("Error saving image to album: \(error?.localizedDescription ?? "Unknown error")")
+        //     }
+        // }
+    }
+
+    private func saveImageToDevice(_ imageURL: URL?) {
+        guard let imageURL = imageURL else { return }
+        // Implement logic to save image to device
+        // Example:
+        // if let imageData = try? Data(contentsOf: imageURL), let image = UIImage(data: imageData) {
+        //     UIImageWriteToSavedPhotosAlbum(image, self, #selector(image(_:didFinishSavingWithError:contextInfo:)), nil)
+        // }
+    }
+
+    // Example selector function for saveImageToDevice
+    private func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
+        if let error = error {
+            print("Error saving image: \(error.localizedDescription)")
+        } else {
+            print("Image saved successfully.")
         }
     }
 }
@@ -552,4 +794,3 @@ public extension ChatView where MessageContent == EmptyView, InputViewContent ==
         self.ids = messages.map { $0.id }
     }
 }
-

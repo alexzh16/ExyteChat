@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import ExyteMediaPicker
+//import ExyteMediaPicker
 import ActivityIndicatorView
 
 struct AttachmentsEditor<InputViewContent: View>: View {
@@ -30,24 +30,47 @@ struct AttachmentsEditor<InputViewContent: View>: View {
 
     @State private var seleсtedMedias: [Media] = []
     @State private var currentFullscreenMedia: Media?
-
+    @State private var showDocumentPicker: Bool = false
+    
     var showingAlbums: Bool {
         inputViewModel.mediaPickerMode == .albums
     }
 
     var body: some View {
         ZStack {
-            mediaPicker
-
+            if inputViewModel.showDocumentPicker {
+                documentPicker
+            } else {
+                mediaPicker
+            }
+            
             if inputViewModel.showActivityIndicator {
                 ActivityIndicator()
             }
         }
     }
 
+    var documentPicker: some View {
+        DocumentPickerView(isPresented: $showDocumentPicker) { url in
+            inputViewModel.handlePickedDocument(url: url)
+            showDocumentPicker = false
+            assembleSelectedMedia()
+        }
+        .onAppear {
+            showDocumentPicker = true
+        }
+        .onChange(of: showDocumentPicker) { newValue in
+            assembleSelectedMedia()
+        }
+        .onChange(of: inputViewModel.showDocumentPicker) { _ in
+            print("showDocumentPicker")
+        }
+    }
+
+
     var mediaPicker: some View {
         GeometryReader { g in
-            MediaPicker(isPresented: $inputViewModel.showPicker) {
+            MediaPicker(isPresented: $inputViewModel.showPicker) { 
                 seleсtedMedias = $0
                 assembleSelectedMedia()
             } albumSelectionBuilder: { _, albumSelectionView, _ in
@@ -97,13 +120,18 @@ struct AttachmentsEditor<InputViewContent: View>: View {
             }
         }
     }
-
+    
     func assembleSelectedMedia() {
         if !seleсtedMedias.isEmpty {
             inputViewModel.attachments.medias = seleсtedMedias
         } else if let media = currentFullscreenMedia {
             inputViewModel.attachments.medias = [media]
-        } else {
+        } else if let selectedDocument = inputViewModel.attachments.documents.first {
+            // Assuming documents are of type Media. Adjust this if documents should be treated separately.
+            inputViewModel.attachments.medias = [ExyteChatMedia(source: URLMediaModel(url: selectedDocument))]
+            inputViewModel.send()
+        }
+        else {
             inputViewModel.attachments.medias = []
         }
     }

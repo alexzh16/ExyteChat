@@ -11,7 +11,8 @@ final class ChatViewModel: ObservableObject {
     
     @Published private(set) var fullscreenAttachmentItem: Optional<Attachment> = nil
     @Published var fullscreenAttachmentPresented = false
-
+    @Published var uploadedFileURL: URL? = nil
+    
     @Published var messageMenuRow: MessageRow?
 
     public var didSendMessage: (DraftMessage) -> Void = {_ in}
@@ -28,5 +29,9 @@ final class ChatViewModel: ObservableObject {
 
     func sendMessage(_ message: DraftMessage) {
         didSendMessage(message)
+    }
+    // Метод для установки URL загруженного файла
+    func setUploadedFileURL(_ url: URL) {
+        uploadedFileURL = url
     }
 }

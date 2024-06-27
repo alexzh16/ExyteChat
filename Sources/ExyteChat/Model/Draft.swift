@@ -3,27 +3,37 @@
 //
 
 import Foundation
-import ExyteMediaPicker
+//import ExyteMediaPicker
 
 public struct DraftMessage {
     public var id: String?
     public let text: String
-    public let medias: [Media]
     public let recording: Recording?
     public let replyMessage: ReplyMessage?
+    public var replyToMessageId: String?
     public let createdAt: Date
-
-    public init(id: String? = nil, 
+    public let medias: [Media]
+    public let isReadMessage: Bool
+    public var files: [FileAttachment]
+    
+    public init(id: String? = nil,
                 text: String,
                 medias: [Media],
+                files: [FileAttachment],
                 recording: Recording?,
                 replyMessage: ReplyMessage?,
-                createdAt: Date) {
+                createdAt: Date,
+                isReadMessage: Bool? = false,
+                replyToMessageId: String? = nil
+    ) {
         self.id = id
         self.text = text
         self.medias = medias
+        self.files = files
         self.recording = recording
         self.replyMessage = replyMessage
         self.createdAt = createdAt
+        self.isReadMessage = isReadMessage ?? false
+        self.replyToMessageId = replyToMessageId
     }
 }

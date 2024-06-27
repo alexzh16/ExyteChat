@@ -3,18 +3,20 @@
 //
 
 import Foundation
-import ExyteMediaPicker
 
 public enum AttachmentType: String, Codable {
     case image
     case video
-
+    case files
+    
     public var title: String {
         switch self {
         case .image:
             return "Image"
-        default:
+        case .video:
             return "Video"
+        default:
+            return "Files"
         }
     }
 
@@ -22,8 +24,10 @@ public enum AttachmentType: String, Codable {
         switch mediaType {
         case .image:
             self = .image
-        default:
+        case .video:
             self = .video
+        case .files:
+            self = .files
         }
     }
 }
@@ -45,3 +49,37 @@ public struct Attachment: Codable, Identifiable, Hashable {
         self.init(id: id, thumbnail: url, full: url, type: type)
     }
 }
+/*
+// Новый enum, включающий новый кейс .files
+public enum ExtendedMediaType: String, Codable {
+    case image
+    case video
+    case files
+    
+    public init(mediaType: MediaType) {
+        switch mediaType {
+        case .image:
+            self = .image
+        case .video:
+            self = .video
+        case .files:
+            self = .files
+        }
+    }
+    
+    public init(mediaType: MediaType?, defaultType: ExtendedMediaType = .files) {
+        if let mediaType = mediaType {
+            self.init(mediaType: mediaType)
+        } else {
+            self = defaultType
+        }
+    }
+}
+
+// Расширение для Media, добавляющее свойство extendedType
+public extension Media {
+    var extendedType: ExtendedMediaType {
+        return ExtendedMediaType(mediaType: self.type)
+    }
+}
+*/

@@ -53,7 +53,7 @@ public struct ExyteChatMessage: Identifiable, Hashable {
     public var attachments: [Attachment]
     public var recording: Recording?
     public var replyMessage: ReplyMessage?
-//    public var replyToMessageId: String?
+    public var replyToMessageId: String?
     
     public init(id: String,
                 user: ExyteChatUser,
@@ -62,7 +62,9 @@ public struct ExyteChatMessage: Identifiable, Hashable {
                 text: String = "",
                 attachments: [Attachment] = [],
                 recording: Recording? = nil,
-                replyMessage: ReplyMessage? = nil) {
+                replyMessage: ReplyMessage? = nil,
+                replyToMessageId: String? = nil
+    ) {
 
         self.id = id
         self.user = user
@@ -72,6 +74,7 @@ public struct ExyteChatMessage: Identifiable, Hashable {
         self.attachments = attachments
         self.recording = recording
         self.replyMessage = replyMessage
+        self.replyToMessageId = replyToMessageId
     }
 
     public static func makeMessage(
@@ -92,6 +95,11 @@ public struct ExyteChatMessage: Identifiable, Hashable {
                         return nil
                     }
                     return Attachment(id: UUID().uuidString, thumbnail: thumbnailURL, full: fullURL, type: .video)
+                case .files:
+                    guard let fullURL = await media.getURL() else {
+                        return nil
+                    }
+                    return Attachment(id: UUID().uuidString, thumbnail: thumbnailURL, full: fullURL, type: .files)
                 }
             }
 
