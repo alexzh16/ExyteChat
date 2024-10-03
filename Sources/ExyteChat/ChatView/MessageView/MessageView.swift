@@ -291,54 +291,54 @@ extension View {
             .cornerRadius(radius)
     }
 }
-
-#if DEBUG
-struct MessageView_Preview: PreviewProvider {
-    static let stan = ExyteChatUser(id: "stan", name: "Stan", avatarURL: nil, isCurrentUser: false)
-    static let john = ExyteChatUser(id: "john", name: "John", avatarURL: nil, isCurrentUser: true)
-
-    static private var shortMessage = "Hi, buddy!"
-    static private var longMessage = "Hello hello hello hello hello hello hello hello hello hello hello hello hello\n hello hello hello hello d d d d d d d d"
-
-    static private var replyedMessage = Message(
-        id: UUID().uuidString,
-        user: stan,
-        status: .read,
-        text: longMessage,
-        attachments: [
-            Attachment.randomImage(),
-            Attachment.randomImage(),
-            Attachment.randomImage(),
-            Attachment.randomImage(),
-            Attachment.randomImage(),
-        ]
-    )
-
-    static private var message = Message(
-        id: UUID().uuidString,
-        user: stan,
-        status: .read,
-        text: shortMessage,
-        replyMessage: replyedMessage.toReplyMessage()
-    )
-
-    static var previews: some View {
-        ZStack {
-            Color.yellow.ignoresSafeArea()
-
-            MessageView(
-                viewModel: ChatViewModel(),
-                message: replyedMessage,
-                positionInGroup: .single,
-                chatType: .chat,
-                avatarSize: 32,
-                tapAvatarClosure: nil,
-                messageUseMarkdown: false,
-                isDisplayingMessageMenu: false,
-                showMessageTimeView: true,
-                font: UIFontMetrics.default.scaledFont(for: UIFont.systemFont(ofSize: 15))
-            )
-        }
-    }
-}
-#endif
+//
+//#if DEBUG
+//struct MessageView_Preview: PreviewProvider {
+//    static let stan = ExyteChatUser(id: "stan", name: "Stan", avatarURL: nil, isCurrentUser: false)
+//    static let john = ExyteChatUser(id: "john", name: "John", avatarURL: nil, isCurrentUser: true)
+//
+//    static private var shortMessage = "Hi, buddy!"
+//    static private var longMessage = "Hello hello hello hello hello hello hello hello hello hello hello hello hello\n hello hello hello hello d d d d d d d d"
+//
+//    static private var replyedMessage = Message(
+//        id: UUID().uuidString,
+//        user: stan,
+//        status: .read,
+//        text: longMessage,
+//        attachments: [
+//            Attachment.randomImage(),
+//            Attachment.randomImage(),
+//            Attachment.randomImage(),
+//            Attachment.randomImage(),
+//            Attachment.randomImage(),
+//        ]
+//    )
+//
+//    static private var message = Message(
+//        id: UUID().uuidString,
+//        user: stan,
+//        status: .read,
+//        text: shortMessage,
+//        replyMessage: replyedMessage.toReplyMessage()
+//    )
+//
+//    static var previews: some View {
+//        ZStack {
+//            Color.yellow.ignoresSafeArea()
+//
+//            MessageView(
+//                viewModel: ChatViewModel(),
+//                message: replyedMessage,
+//                positionInGroup: .single,
+//                chatType: .chat,
+//                avatarSize: 32,
+//                tapAvatarClosure: nil,
+//                messageUseMarkdown: false,
+//                isDisplayingMessageMenu: false,
+//                showMessageTimeView: true,
+//                font: UIFontMetrics.default.scaledFont(for: UIFont.systemFont(ofSize: 15))
+//            )
+//        }
+//    }
+//}
+//#endif

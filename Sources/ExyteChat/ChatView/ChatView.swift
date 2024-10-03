@@ -10,6 +10,7 @@ import FloatingButton
 import SwiftUIIntrospect
 //import ExyteMediaPicker
 import UniformTypeIdentifiers
+import UIKit
 
 public typealias MediaPickerParameters = SelectionParamsHolder
 
@@ -348,27 +349,29 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
                     messageFont: messageFont
                 )
                 .frame(width: UIScreen.main.bounds.width - 32)
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, isShowingMenu ? 0 : 0) // Adjust bottom padding if menu is shown
-                    .onAppear {
-                        DispatchQueue.main.async {
-                            if let frame = cellFrames[row.id] {
-                                showMessageMenu(frame)
-                            }
+                .padding(.horizontal, 8)
+                .padding(.bottom, isShowingMenu ? 0 : 0) // Adjust bottom padding if menu is shown
+                .onAppear {
+                    DispatchQueue.main.async {
+                        if let frame = cellFrames[row.id] {
+                            showMessageMenu(frame)
                         }
                     }
+                }
                 .onTapGesture {
                     hideMessageMenu()
                 }
             },
             onAction: { action in
-                onMessageMenuAction(row: row, action: action)
+                Task {
+                    await onMessageMenuAction(row: row, action: action)
+                }
             },
             messageText: row.message.text,
             messageImageURL: row.message.attachments.first(where: { $0.type == .image })?.full,
             messageDocumentURL: row.message.attachments.first(where: { $0.type == .files })?.full,
             onSaveSuccess: {
-                showSaveSuccessMessage()
+                showSaveSuccessMessage(forKey: "document_saved_successfully")
             }
         )
         .frame(height: menuButtonsSize.height + (cellFrames[row.id]?.height ?? 0), alignment: .top)
@@ -385,11 +388,13 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
         isShowingSnackbar = false
     }
     
-    func showSaveSuccessMessage() {
-            saveSuccessMessage = "Document saved successfully"
-            withAnimation{showSnackbar(message: saveSuccessMessage)}
+    func showSaveSuccessMessage(forKey key: String) {
+        let message = NSLocalizedString(key, comment: "")
+        withAnimation {
+            showSnackbar(message: message)
         }
-
+    }
+    
     func showMessageMenu(_ cellFrame: CGRect) {
         DispatchQueue.main.async {
             let wholeMenuHeight = menuButtonsSize.height + cellFrame.height
@@ -439,12 +444,12 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
         }
     }
 
-    func onMessageMenuAction(row: MessageRow, action: MessageMenuAction) {
+    func onMessageMenuAction(row: MessageRow, action: MessageMenuAction) async {
         hideMessageMenu()
 
         switch action {
         case .reply:
-            inputViewModel.attachments.replyMessage = row.message.toReplyMessage()
+            inputViewModel.attachments.replyMessage = await row.message.toReplyMessage()
             globalFocusState.focus = .uuid(inputFieldId)
             if let replyToMessageId = row.message.replyMessage?.id {
                 scrollToMessage(withId: replyToMessageId)
@@ -590,19 +595,16 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
     private func saveImageToAlbum(_ imageURL: URL?) {
         guard let imageURL = imageURL else { return }
         // Implement logic to save image to album
-        // Example:
-        // PHPhotoLibrary.shared().performChanges {
-        //     let assetCreationRequest = PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: imageURL)
-        //     let assetPlaceholder = assetCreationRequest.placeholderForCreatedAsset
-        //     let albumChangeRequest = PHAssetCollectionChangeRequest(for: album)
-        //     albumChangeRequest?.addAssets([assetPlaceholder] as NSFastEnumeration)
-        // } completionHandler: { success, error in
-        //     if success {
-        //         print("Image saved to album successfully.")
-        //     } else {
-        //         print("Error saving image to album: \(error?.localizedDescription ?? "Unknown error")")
-        //     }
-        // }
+            let task = URLSession.shared.dataTask(with: imageURL) { data, response, error in
+                if let data = data, let image = UIImage(data: data) {
+                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    showSaveSuccessMessage(forKey: "image_saved_successfully")
+//                    onSaveSuccess?()
+                } else {
+                    showSaveSuccessMessage(forKey: "Error")
+                }
+            }
+            task.resume()
     }
 
     private func saveImageToDevice(_ imageURL: URL?) {

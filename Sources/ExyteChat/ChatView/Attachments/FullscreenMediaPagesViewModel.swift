@@ -14,6 +14,8 @@ final class FullscreenMediaPagesViewModel: ObservableObject {
 
     @Published var videoPlaying = false
     @Published var videoMuted = false
+    
+    @Published var playbackRate: Float = 1.0
 
     @Published var toggleVideoPlaying = {}
     @Published var toggleVideoMuted = {}
@@ -21,5 +23,9 @@ final class FullscreenMediaPagesViewModel: ObservableObject {
     init(attachments: [Attachment], index: Int) {
         self.attachments = attachments
         self.index = index
+    }
+    
+    func setPlaybackRate(_ rate: Float) {
+        playbackRate = rate
     }
 }

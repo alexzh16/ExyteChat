@@ -8,52 +8,47 @@
 import SwiftUI
 
 public struct ExyteChatMessage: Identifiable, Hashable {
-
+    
     public enum Status: Equatable, Hashable {
         case sending
         case sent
         case read
         case error(DraftMessage)
-
+        
         public func hash(into hasher: inout Hasher) {
             switch self {
             case .sending:
-                return hasher.combine("sending")
+                hasher.combine("sending")
             case .sent:
-                return hasher.combine("sent")
+                hasher.combine("sent")
             case .read:
-                return hasher.combine("read")
+                hasher.combine("read")
             case .error:
-                return hasher.combine("error")
+                hasher.combine("error")
             }
         }
-
-        public static func == (lhs: Message.Status, rhs: Message.Status) -> Bool {
+        
+        public static func == (lhs: ExyteChatMessage.Status, rhs: ExyteChatMessage.Status) -> Bool {
             switch (lhs, rhs) {
-            case (.sending, .sending):
-                return true
-            case (.sent, .sent):
-                return true
-            case (.read, .read):
-                return true
-            case ( .error(_), .error(_)):
+            case (.sending, .sending), (.sent, .sent), (.read, .read), (.error(_), .error(_)):
                 return true
             default:
                 return false
             }
         }
     }
-
+    
     public var id: String
     public var user: ExyteChatUser
     public var status: Status?
     public var createdAt: Date
-
+    
     public var text: String
     public var attachments: [Attachment]
-    public var recording: Recording?
+    public var recording: ExyteChatRecording?
     public var replyMessage: ReplyMessage?
     public var replyToMessageId: String?
+    public var links: [URL]
     
     public init(id: String,
                 user: ExyteChatUser,
@@ -61,11 +56,11 @@ public struct ExyteChatMessage: Identifiable, Hashable {
                 createdAt: Date = Date(),
                 text: String = "",
                 attachments: [Attachment] = [],
-                recording: Recording? = nil,
+                recording: ExyteChatRecording? = nil,
                 replyMessage: ReplyMessage? = nil,
-                replyToMessageId: String? = nil
-    ) {
-
+                replyToMessageId: String? = nil,
+                links: [URL] = []) {
+        
         self.id = id
         self.user = user
         self.status = status
@@ -75,36 +70,38 @@ public struct ExyteChatMessage: Identifiable, Hashable {
         self.recording = recording
         self.replyMessage = replyMessage
         self.replyToMessageId = replyToMessageId
+        self.links = links
     }
-
+    
     public static func makeMessage(
         id: String,
         user: ExyteChatUser,
         status: Status? = nil,
-        draft: DraftMessage) async -> ExyteChatMessage {
-            let attachments = await draft.medias.asyncCompactMap { media -> Attachment? in
-                guard let thumbnailURL = await media.getThumbnailURL() else {
+        draft: DraftMessage
+    ) async -> ExyteChatMessage {
+        let attachments = await draft.medias.asyncCompactMap { media -> Attachment? in
+            guard let thumbnailURL = await media.getThumbnailURL() else {
+                return nil
+            }
+            
+            switch media.type {
+            case .image:
+                return Attachment(id: UUID().uuidString, url: thumbnailURL, type: .image)
+            case .video:
+                guard let fullURL = await media.getURL() else {
                     return nil
                 }
-
-                switch media.type {
-                case .image:
-                    return Attachment(id: UUID().uuidString, url: thumbnailURL, type: .image)
-                case .video:
-                    guard let fullURL = await media.getURL() else {
-                        return nil
-                    }
-                    return Attachment(id: UUID().uuidString, thumbnail: thumbnailURL, full: fullURL, type: .video)
-                case .files:
-                    guard let fullURL = await media.getURL() else {
-                        return nil
-                    }
-                    return Attachment(id: UUID().uuidString, thumbnail: thumbnailURL, full: fullURL, type: .files)
+                return Attachment(id: UUID().uuidString, thumbnail: thumbnailURL, full: fullURL, type: .video)
+            case .files:
+                guard let fullURL = await media.getURL() else {
+                    return nil
                 }
+                return Attachment(id: UUID().uuidString, thumbnail: thumbnailURL, full: fullURL, type: .files)
             }
-
-            return ExyteChatMessage(id: id, user: user, status: status, createdAt: draft.createdAt, text: draft.text, attachments: attachments, recording: draft.recording, replyMessage: draft.replyMessage)
         }
+        
+        return ExyteChatMessage(id: id, user: user, status: status, createdAt: draft.createdAt, text: draft.text, attachments: attachments, recording: draft.recording, replyMessage: draft.replyMessage)
+    }
 }
 
 extension ExyteChatMessage {
@@ -114,7 +111,7 @@ extension ExyteChatMessage {
 }
 
 extension ExyteChatMessage: Equatable {
-    public static func == (lhs: Message, rhs: Message) -> Bool {
+    public static func == (lhs: ExyteChatMessage, rhs: ExyteChatMessage) -> Bool {
         lhs.id == rhs.id && lhs.status == rhs.status
     }
 }
@@ -123,7 +120,7 @@ public struct ExyteChatRecording: Codable, Hashable {
     public var duration: Double
     public var waveformSamples: [CGFloat]
     public var url: URL?
-
+    
     public init(duration: Double = 0.0, waveformSamples: [CGFloat] = [], url: URL? = nil) {
         self.duration = duration
         self.waveformSamples = waveformSamples
@@ -135,35 +132,73 @@ public struct ReplyMessage: Codable, Identifiable, Hashable {
     public static func == (lhs: ReplyMessage, rhs: ReplyMessage) -> Bool {
         lhs.id == rhs.id
     }
-
+    
     public var id: String
     public var user: ExyteChatUser
-
+    
     public var text: String
     public var attachments: [Attachment]
-    public var recording: Recording?
-
+    public var recording: ExyteChatRecording?
+    
     public init(id: String,
                 user: ExyteChatUser,
                 text: String = "",
                 attachments: [Attachment] = [],
-                recording: Recording? = nil) {
-
+                recording: ExyteChatRecording? = nil) {
+        
         self.id = id
         self.user = user
         self.text = text
         self.attachments = attachments
         self.recording = recording
     }
-
+    
     func toMessage() -> ExyteChatMessage {
         ExyteChatMessage(id: id, user: user, text: text, attachments: attachments, recording: recording)
     }
 }
 
 public extension ExyteChatMessage {
+    func toReplyMessage() async -> ReplyMessage {
+        await ReplyMessage.createReplyMessage(id: id, user: user, text: text, originalMessage: self)
+    }
+}
 
-    func toReplyMessage() -> ReplyMessage {
-        ReplyMessage(id: id, user: user, text: text, attachments: attachments, recording: recording)
+// метод для создания ответа на сообщение с генерацией миниатюр
+public extension ReplyMessage {
+    static func createReplyMessage(
+        id: String,
+        user: ExyteChatUser,
+        text: String = "",
+        originalMessage: ExyteChatMessage
+    ) async -> ReplyMessage {
+        let attachments = await originalMessage.attachments.asyncCompactMap { attachment -> Attachment? in
+            let url = attachment.full
+            let mediaModel = URLMediaModel(url: url)
+            
+            guard let thumbnailURL = await mediaModel.getThumbnailURL() else {
+                return nil
+            }
+            
+            // Создаем новый Attachment с миниатюрой
+            switch mediaModel.mediaType {
+            case .image:
+                return Attachment(id: attachment.id, url: thumbnailURL, type: .image)
+            case .video:
+                guard let fullURL = await mediaModel.getURL() else {
+                    return nil
+                }
+                return Attachment(id: attachment.id, thumbnail: thumbnailURL, full: fullURL, type: .video)
+            case .files:
+                guard let fullURL = await mediaModel.getURL() else {
+                    return nil
+                }
+                return Attachment(id: attachment.id, thumbnail: thumbnailURL, full: fullURL, type: .files)
+            case .none:
+                return nil
+            }
+        }
+        
+        return ReplyMessage(id: id, user: user, text: text, attachments: attachments)
     }
 }

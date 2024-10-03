@@ -25,8 +25,10 @@ final class RecordingPlayer: ObservableObject {
     private var timeObserver: Any?
 
     init() {
+#if !targetEnvironment(simulator)
         try? audioSession.setCategory(.playback)
         try? audioSession.overrideOutputAudioPort(.speaker)
+#endif
     }
 
     func play(_ recording: Recording) {
