@@ -8,7 +8,6 @@
 import SwiftUI
 import FloatingButton
 import SwiftUIIntrospect
-//import ExyteMediaPicker
 import UniformTypeIdentifiers
 import UIKit
 
@@ -202,8 +201,8 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
                 .transition(.move(edge: .bottom)) // Плавное появление снизу
                 .animation(.easeInOut, value: inputViewModel.showDocumentPicker)
         }
-        .onChange(of: inputViewModel.showPicker) {
-            if $0 {
+        .onChange(of: inputViewModel.showPicker) { newValue, _ in
+            if newValue {
                 globalFocusState.focus = nil
             }
         }
@@ -579,7 +578,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View>: View {
         }
     }
     
-    // Добавьте координатор для обработки делегата UIDocumentPickerViewController
+    // координатор для обработки делегата UIDocumentPickerViewController
     class Coordinator: NSObject, UIDocumentPickerDelegate, UINavigationControllerDelegate {
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
             guard let url = urls.first else { return }

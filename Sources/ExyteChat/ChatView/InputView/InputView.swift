@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-//import ExyteMediaPicker
 import Combine
 
 public enum InputViewStyle {
@@ -64,11 +63,12 @@ public enum AvailableInputType {
 }
 
 public struct InputViewAttachments {
-    public var text: String = ""
-    public var medias: [Media] = []
-    public var documents: [URL] = []
-    public var recording: Recording?
-    public var replyMessage: ReplyMessage?
+   public var text: String = ""
+   public var medias: [Media] = []
+   public var documents: [URL] = []
+   public var recording: Recording?
+   public var replyMessage: ReplyMessage?
+   public var attachments: [Attachment] = []
 }
 
 
@@ -148,7 +148,7 @@ struct InputView: View {
         .background(
             GeometryReader { geo in
                 Color.clear
-                    .onChange(of: geo.frame(in: .global)) { newFrame in
+                    .onChange(of: geo.frame(in: .global)) { newFrame, _ in
                         attachButtonFrame = newFrame
                         print("Attach Button Frame: \(attachButtonFrame)")
                         print("Attach Button X: \(attachButtonFrame.minX) Y: \(attachButtonFrame.minY)")

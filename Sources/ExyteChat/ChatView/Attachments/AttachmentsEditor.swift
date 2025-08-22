@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-//import ExyteMediaPicker
 import ActivityIndicatorView
 
 struct AttachmentsEditor<InputViewContent: View>: View {
@@ -59,10 +58,10 @@ struct AttachmentsEditor<InputViewContent: View>: View {
         .onAppear {
             showDocumentPicker = true
         }
-        .onChange(of: showDocumentPicker) { newValue in
+        .onChange(of: showDocumentPicker) { newValue, _ in
             assembleSelectedMedia()
         }
-        .onChange(of: inputViewModel.showDocumentPicker) { _ in
+        .onChange(of: inputViewModel.showDocumentPicker) {
             print("showDocumentPicker")
         }
     }
@@ -106,10 +105,10 @@ struct AttachmentsEditor<InputViewContent: View>: View {
             .padding(.top)
             .background(pickerTheme.main.albumSelectionBackground)
             .ignoresSafeArea(.all)
-            .onChange(of: currentFullscreenMedia) { newValue in
+            .onChange(of: currentFullscreenMedia) { newValue, _ in
                 assembleSelectedMedia()
             }
-            .onChange(of: inputViewModel.showPicker) { _ in
+            .onChange(of: inputViewModel.showPicker) {
                 let showFullscreenPreview = mediaPickerSelectionParameters?.showFullscreenPreview ?? true
                 let selectionLimit = mediaPickerSelectionParameters?.selectionLimit ?? 1
 

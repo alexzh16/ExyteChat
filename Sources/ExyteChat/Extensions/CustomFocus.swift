@@ -19,11 +19,11 @@ struct CustomFocus<T: Hashable>: ViewModifier {
     func body(content: Content) -> some View {
         content
             .focused($focus, equals: true)
-            .onChange(of: binding) {
-                focus = ($0 == equals)
+            .onChange(of: binding) {newValue, _ in
+                focus = (newValue == equals)
             }
-            .onChange(of: focus) {
-                if $0 {
+            .onChange(of: focus) {newValue, _ in
+                if newValue {
                     binding = equals
                 }
             }
