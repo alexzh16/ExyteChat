@@ -178,13 +178,13 @@ struct MessageMenu<MainButton: View>: View {
         let task = session.dataTask(with: imageURL) { data, response, error in
             // Check for errors
             if let error = error {
-                print("Error loading image data:", error.localizedDescription)
+               debugPrint("\(logTAG) \(#line) \(#function) Error loading image data:", error.localizedDescription)
                 return
             }
             
             // Ensure data is not nil
             guard let imageData = data else {
-                print("No data received")
+               debugPrint("\(logTAG) \(#line) \(#function) No data received")
                 return
             }
             
@@ -197,7 +197,7 @@ struct MessageMenu<MainButton: View>: View {
                     onSaveSuccess?()
                 }
             } else {
-                print("Failed to create UIImage from data")
+               debugPrint("\(logTAG) \(#line) \(#function) Failed to create UIImage from data")
             }
         }
         
@@ -224,10 +224,10 @@ struct MessageMenu<MainButton: View>: View {
                     onSaveSuccess?() // Call callback on success
                 }
             } else {
-                print("Documents directory not found")
+               debugPrint("\(logTAG) \(#line) \(#function) Documents directory not found")
             }
         } catch {
-            print("Error saving document:", error.localizedDescription)
+           debugPrint("\(logTAG) \(#line) \(#function) Error saving document:", error.localizedDescription)
             errorMessage = error.localizedDescription
             showErrorAlert = true
         }

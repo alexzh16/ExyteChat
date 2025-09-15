@@ -22,7 +22,7 @@ struct ExyteChatAvatarView: View {
     }
 }
 
-struct AvatarView_Previews: PreviewProvider {
+struct ExyteChatAvatarView_Previews: PreviewProvider {
     static var previews: some View {
         ExyteChatAvatarView(
             url: URL(string: "https://placeimg.com/640/480/sepia"),

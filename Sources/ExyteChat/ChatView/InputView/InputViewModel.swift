@@ -8,7 +8,7 @@ import AVFoundation
 import UIKit
 
 final class InputViewModel: ObservableObject {
-   
+   let logTAG = "InputViewModel"
    // MARK: - Published Properties
    @Published var attachments = InputViewAttachments()
    @Published var state: InputViewState = .empty
@@ -136,7 +136,7 @@ final class InputViewModel: ObservableObject {
          return
       }
       
-      debugPrint("Picked document: \(url)")
+      debugPrint("\(logTAG) \(#line) \(#function) Picked document: \(url)")
       
       // Попробуем переместить файл в директорию Documents
       do {
@@ -184,7 +184,7 @@ final class InputViewModel: ObservableObject {
    
    private func showError(_ message: String) {
       // Implement error display, e.g., via notification or snackbar
-      debugPrint("Error: \(message)")
+      debugPrint("\(logTAG) \(#line) \(#function) Error: \(message)")
    }
    
    private func uploadFileToFirestore(destinationURL: URL) {
@@ -192,14 +192,14 @@ final class InputViewModel: ObservableObject {
       Task {
          let (fileURL, thumbnailURL) = await UploadingManager.uploadFileWithThumbnail(destinationURL)
          if let fileURL = fileURL {
-            print("Uploaded file URL: \(fileURL)")
+           debugPrint("\(logTAG) \(#line) \(#function) Uploaded file URL: \(fileURL)")
          } else {
-            print("Failed to upload file.")
+           debugPrint("\(logTAG) \(#line) \(#function) Failed to upload file.")
          }
          if let thumbnailURL = thumbnailURL {
-            print("Uploaded thumbnail URL: \(thumbnailURL)")
+           debugPrint("\(logTAG) \(#line) \(#function) Uploaded thumbnail URL: \(thumbnailURL)")
          } else {
-            print("Failed to upload thumbnail.")
+           debugPrint("\(logTAG) \(#line) \(#function) Failed to upload thumbnail.")
          }
       }
    }
