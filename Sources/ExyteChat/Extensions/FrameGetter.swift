@@ -44,18 +44,40 @@ struct SizeGetter: ViewModifier {
     }
 }
 
-extension View {
+struct MaxHeightGetter: ViewModifier {
+    @Binding var height: CGFloat
 
-    public func frameGetter(_ frame: Binding<CGRect>) -> some View {
-        modifier(FrameGetter(frame: frame))
-    }
-
-    public func sizeGetter(_ size: Binding<CGSize>) -> some View {
-        modifier(SizeGetter(size: size))
+    func body(content: Content) -> some View {
+        content
+            .background(
+                GeometryReader { proxy -> Color in
+                    if proxy.size.height > self.height {
+                        DispatchQueue.main.async {
+                            self.height = proxy.size.height
+                        }
+                    }
+                    return Color.clear
+                }
+            )
     }
 }
 
-struct MessageMenuPreferenceKey: PreferenceKey {
+extension View {
+
+    func frameGetter(_ frame: Binding<CGRect>) -> some View {
+        modifier(FrameGetter(frame: frame))
+    }
+
+    func sizeGetter(_ size: Binding<CGSize>) -> some View {
+        modifier(SizeGetter(size: size))
+    }
+    
+    func maxHeightGetter(_ height: Binding<CGFloat>) -> some View {
+        modifier(MaxHeightGetter(height: height))
+    }
+}
+
+actor MessageMenuPreferenceKey: PreferenceKey {
     typealias Value = [String: CGRect]
 
     static var defaultValue: Value = [:]

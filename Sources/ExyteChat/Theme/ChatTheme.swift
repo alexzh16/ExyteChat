@@ -1,114 +1,259 @@
 //
 //  ChatTheme.swift
-//  
+//
 //
 //  Created by Alisa Mylnikova on 31.01.2023.
 //
 
 import SwiftUI
 
-struct ChatThemeKey: EnvironmentKey {
-    static var defaultValue: ChatTheme = ChatTheme()
-}
-
-extension EnvironmentValues {
+public extension EnvironmentValues {
+    #if swift(>=6.0)
+    @Entry var chatTheme = ChatTheme()
+    @Entry var giphyConfig = GiphyConfiguration()
+    #else
     var chatTheme: ChatTheme {
         get { self[ChatThemeKey.self] }
         set { self[ChatThemeKey.self] = newValue }
     }
+
+    var giphyConfig: GiphyConfiguration {
+        get { self[GiphyConfigurationKey.self] }
+        set { self[GiphyConfigurationKey.self] = newValue }
+    }
+    #endif
 }
 
-public extension View {
-    func chatTheme(_ theme: ChatTheme) -> some View {
+// Define keys only for older versions
+#if swift(<6.0)
+@preconcurrency public struct ChatThemeKey: EnvironmentKey {
+    public static let defaultValue = ChatTheme()
+}
+
+public struct GiphyConfigurationKey: EnvironmentKey {
+    public static let defaultValue = GiphyConfiguration()
+}
+#endif
+
+extension View {
+
+    public func chatTheme(_ theme: ChatTheme) -> some View {
         self.environment(\.chatTheme, theme)
     }
 
-    func chatTheme(colors: ChatTheme.Colors = .init(),
-                   images: ChatTheme.Images = .init()) -> some View {
+    public func chatTheme(
+        colors: ChatTheme.Colors = .init(),
+        images: ChatTheme.Images = .init()
+    ) -> some View {
         self.environment(\.chatTheme, ChatTheme(colors: colors, images: images))
+    }
+
+    public func giphyConfig(_ config: GiphyConfiguration) -> some View {
+        self.environment(\.giphyConfig, config)
     }
 }
 
 public struct ChatTheme {
     public let colors: ChatTheme.Colors
     public let images: ChatTheme.Images
+    public let style: ChatTheme.Style
 
-    public init(colors: ChatTheme.Colors = .init(),
-                images: ChatTheme.Images = .init()) {
-        self.colors = colors
+    public init(
+        colors: ChatTheme.Colors = .init(),
+        images: ChatTheme.Images = .init(),
+        style: ChatTheme.Style = .init()
+    ) {
+        self.style = style
         self.images = images
+        
+        // if background images have been set then override the mainBG color to be clear
+        self.colors = if images.background != nil {
+            ChatTheme.Colors(copy: colors, mainBG: .clear)
+        } else {
+            colors
+        }
+    }
+    
+    internal init(accentColor: Color, images: ChatTheme.Images) {
+        self.init(
+            colors: .init(
+                mainTint: accentColor,
+                messageMyBG: accentColor,
+                messageMyTimeText: Color.white.opacity(0.5),
+                sendButtonBackground: accentColor
+            ),
+            images: images
+        )
+    }
+    
+    @available(iOS 18.0, *)
+    internal init(accentColor: Color, background: ThemedBackgroundStyle = .mixedWithAccentColor(), improveContrast: Bool) {
+        let backgroundColor: Color = background.getBackgroundColor(withAccent: accentColor, improveContrast: improveContrast)
+        let friendMessageColor: Color = background.getFriendMessageColor(improveContrast: improveContrast, background: backgroundColor)
+        self.init(
+            colors: .init(
+                mainBG: backgroundColor,
+                mainTint: accentColor,
+                messageMyBG: accentColor,
+                messageMyText: Color.white,
+                messageMyTimeText: Color.white.opacity(0.5),
+                messageFriendBG: friendMessageColor,
+                inputBG: friendMessageColor,
+                menuBG: backgroundColor,
+                sendButtonBackground: accentColor
+            )
+        )
     }
 
     public struct Colors {
-        public var grayStatus: Color
-        public var errorStatus: Color
+        public var mainBG: Color
+        public var mainTint: Color
+        public var mainText: Color
+        public var mainCaptionText: Color
 
-        public var inputLightContextBackground: Color
-        public var inputDarkContextBackground: Color
+        public var messageMyBG: Color
+        public var messageMyText: Color
+        public var messageMyTimeText: Color
 
-        public var mainBackground: Color
-        public var buttonBackground: Color
-        public var addButtonBackground: Color
+        public var messageFriendBG: Color
+        public var messageFriendText: Color
+        public var messageFriendTimeText: Color
+        
+        public var messageSystemBG: Color
+        public var messageSystemText: Color
+        public var messageSystemTimeText: Color
+
+        public var inputBG: Color
+        public var inputText: Color
+        public var inputPlaceholderText: Color
+
+        public var inputSignatureBG: Color
+        public var inputSignatureText: Color
+        public var inputSignaturePlaceholderText: Color
+
+        public var menuBG: Color
+        public var menuText: Color
+        public var menuTextDelete: Color
+
+        public var statusError: Color
+        public var statusGray: Color
+
         public var sendButtonBackground: Color
-
-        public var myMessage: Color
-        public var friendMessage: Color
-
-
-        public var textLightContext: Color
-        public var textDarkContext: Color
-        public var textMediaPicker: Color
-
         public var recordDot: Color
 
-        public var myMessageTime: Color
-        public var frientMessageTime: Color
-
-        public var timeCapsuleBackground: Color
-        public var timeCapsuleForeground: Color
-
         public init(
-            grayStatus: Color = Color(hex: "AFB3B8"),
-            errorStatus: Color = Color.red,
-            inputLightContextBackground: Color = Color(hex: "F2F3F5"),
-            inputDarkContextBackground: Color = Color(hex: "F2F3F5").opacity(0.12),
-            mainBackground: Color = .white,
-            buttonBackground: Color = Color(hex: "989EAC"),
-            addButtonBackground: Color = Color(hex: "#4F5055"),
-            sendButtonBackground: Color = Color(hex: "#4962FF"),
-            myMessage: Color = Color(hex: "4962FF"),
-            friendMessage: Color = Color(hex: "EBEDF0"),
-            textLightContext: Color = Color.black,
-            textDarkContext: Color = Color.white,
-            textMediaPicker: Color = Color(hex: "818C99"),
-            recordDot: Color = Color(hex: "F62121"),
-            myMessageTime: Color = .white.opacity(0.4),
-            frientMessageTime: Color = .black.opacity(0.4),
-            timeCapsuleBackground: Color = .black.opacity(0.4),
-            timeCapsuleForeground: Color = .white
+            mainBG: Color = Color("mainBG", bundle: .current),
+            mainTint: Color = Color("inputPlaceholderText", bundle: .current),
+            mainText: Color = Color("mainText", bundle: .current),
+            mainCaptionText: Color = Color("mainCaptionText", bundle: .current),
+            messageMyBG: Color = Color("messageMyBG", bundle: .current),
+            messageMyText: Color = Color.white,
+            messageMyTimeText: Color = Color("messageMyTimeText", bundle: .current),
+            messageFriendBG: Color = Color("messageFriendBG", bundle: .current),
+            messageFriendText: Color = Color("mainText", bundle: .current),
+            messageFriendTimeText: Color = Color("messageFriendTimeText", bundle: .current),
+            messageSystemBG: Color = Color("messageFriendBG", bundle: .current),
+            messageSystemText: Color = Color("mainText", bundle: .current),
+            messageSystemTimeText: Color = Color("messageFriendTimeText", bundle: .current),
+            inputBG: Color = Color("inputBG", bundle: .current),
+            inputText: Color = Color("mainText", bundle: .current),
+            inputPlaceholderText: Color = Color("inputPlaceholderText", bundle: .current),
+            inputSignatureBG: Color = Color("inputBG", bundle: .current),
+            inputSignatureText: Color = Color("mainText", bundle: .current),
+            inputSignaturePlaceholderText: Color = Color("inputPlaceholderText", bundle: .current),
+            menuBG: Color = Color("menuBG", bundle: .current),
+            menuText: Color = Color("menuText", bundle: .current),
+            menuTextDelete: Color = Color("menuTextDelete", bundle: .current),
+            statusError: Color = Color("statusError", bundle: .current),
+            statusGray: Color = Color("statusGray", bundle: .current),
+            sendButtonBackground: Color = Color("messageMyBG", bundle: .current),
+            recordDot: Color = Color("menuTextDelete", bundle: .current)
         ) {
-            self.grayStatus = grayStatus
-            self.errorStatus = errorStatus
-            self.inputLightContextBackground = inputLightContextBackground
-            self.inputDarkContextBackground = inputDarkContextBackground
-            self.mainBackground = mainBackground
-            self.buttonBackground = buttonBackground
-            self.addButtonBackground = addButtonBackground
+            self.mainBG = mainBG
+            self.mainTint = mainTint
+            self.mainText = mainText
+            self.mainCaptionText = mainCaptionText
+            self.messageMyBG = messageMyBG
+            self.messageMyText = messageMyText
+            self.messageMyTimeText = messageMyTimeText
+            self.messageFriendBG = messageFriendBG
+            self.messageFriendText = messageFriendText
+            self.messageFriendTimeText = messageFriendTimeText
+            self.messageSystemBG = messageSystemBG
+            self.messageSystemText = messageSystemText
+            self.messageSystemTimeText = messageSystemTimeText
+            self.inputBG = inputBG
+            self.inputText = inputText
+            self.inputPlaceholderText = inputPlaceholderText
+            self.inputSignatureBG = inputSignatureBG
+            self.inputSignatureText = inputSignatureText
+            self.inputSignaturePlaceholderText = inputSignaturePlaceholderText
+            self.menuBG = menuBG
+            self.menuText = menuText
+            self.menuTextDelete = menuTextDelete
+            self.statusError = statusError
+            self.statusGray = statusGray
             self.sendButtonBackground = sendButtonBackground
-            self.myMessage = myMessage
-            self.friendMessage = friendMessage
-            self.textLightContext = textLightContext
-            self.textDarkContext = textDarkContext
-            self.textMediaPicker = textMediaPicker
             self.recordDot = recordDot
-            self.myMessageTime = myMessageTime
-            self.frientMessageTime = frientMessageTime
-            self.timeCapsuleBackground = timeCapsuleBackground
-            self.timeCapsuleForeground = timeCapsuleForeground
+        }
+        
+        public init(copy: Colors, mainBG: Color) {
+            self.mainBG = mainBG
+            self.mainTint = copy.mainTint
+            self.mainText = copy.mainText
+            self.mainCaptionText = copy.mainCaptionText
+            self.messageMyBG = copy.messageMyBG
+            self.messageMyText = copy.messageMyText
+            self.messageMyTimeText = copy.messageMyTimeText
+            self.messageFriendBG = copy.messageFriendBG
+            self.messageFriendText = copy.messageFriendText
+            self.messageFriendTimeText = copy.messageFriendTimeText
+            self.messageSystemBG = copy.messageSystemBG
+            self.messageSystemText = copy.messageSystemText
+            self.messageSystemTimeText = copy.messageSystemTimeText
+            self.inputBG = copy.inputBG
+            self.inputText = copy.inputText
+            self.inputPlaceholderText = copy.inputPlaceholderText
+            self.inputSignatureBG = copy.inputSignatureBG
+            self.inputSignatureText = copy.inputSignatureText
+            self.inputSignaturePlaceholderText = copy.inputSignaturePlaceholderText
+            self.menuBG = copy.menuBG
+            self.menuText = copy.menuText
+            self.menuTextDelete = copy.menuTextDelete
+            self.statusError = copy.statusError
+            self.statusGray = copy.statusGray
+            self.sendButtonBackground = copy.sendButtonBackground
+            self.recordDot = copy.recordDot
         }
     }
 
     public struct Images {
+      
+        public struct Background {
+            
+            let safeAreaRegions: SafeAreaRegions
+            let safeAreaEdges: Edge.Set
+            let portraitBackgroundLight: Image
+            let portraitBackgroundDark: Image
+            let landscapeBackgroundLight: Image
+            let landscapeBackgroundDark: Image
+
+            public init(
+                safeAreaRegions: SafeAreaRegions = .all,
+                safeAreaEdges: Edge.Set = .all,
+                portraitBackgroundLight: Image,
+                portraitBackgroundDark: Image,
+                landscapeBackgroundLight: Image,
+                landscapeBackgroundDark: Image
+            ) {
+                self.safeAreaRegions = safeAreaRegions
+                self.safeAreaEdges = safeAreaEdges
+                self.portraitBackgroundLight = portraitBackgroundLight
+                self.portraitBackgroundDark = portraitBackgroundDark
+                self.landscapeBackgroundLight = landscapeBackgroundLight
+                self.landscapeBackgroundDark = landscapeBackgroundDark
+            }
+        }
 
         public struct AttachMenu {
             public var camera: Image
@@ -124,6 +269,7 @@ public struct ChatTheme {
         public struct InputView {
             public var add: Image
             public var arrowSend: Image
+            public var sticker: Image
             public var attach: Image
             public var attachCamera: Image
             public var microphone: Image
@@ -144,21 +290,21 @@ public struct ChatTheme {
 
         public struct Message {
             public var attachedDocument: Image
-            public var checkmarks: Image
             public var error: Image
             public var muteVideo: Image
             public var pauseAudio: Image
             public var pauseVideo: Image
             public var playAudio: Image
             public var playVideo: Image
+            public var read: Image
             public var sending: Image
+            public var sent: Image
         }
 
         public struct MessageMenu {
             public var delete: Image
             public var edit: Image
             public var forward: Image
-            public var reply: Image
             public var retry: Image
             public var save: Image
             public var select: Image
@@ -178,7 +324,9 @@ public struct ChatTheme {
             public var cancelReply: Image
             public var replyToMessage: Image
         }
-
+      
+        public var background: Background? = nil
+  
         public var backButton: Image
         public var scrollToBottom: Image
 
@@ -202,6 +350,7 @@ public struct ChatTheme {
             pickPhoto: Image? = nil,
             add: Image? = nil,
             arrowSend: Image? = nil,
+            sticker: Image? = nil,
             attach: Image? = nil,
             attachCamera: Image? = nil,
             microphone: Image? = nil,
@@ -213,18 +362,18 @@ public struct ChatTheme {
             chevronRight: Image? = nil,
             cross: Image? = nil,
             attachedDocument: Image? = nil,
-            checkmarks: Image? = nil,
             error: Image? = nil,
             muteVideo: Image? = nil,
             pauseAudio: Image? = nil,
             pauseVideo: Image? = nil,
             playAudio: Image? = nil,
             playVideo: Image? = nil,
+            read: Image? = nil,
             sending: Image? = nil,
+            sent: Image? = nil,
             delete: Image? = nil,
             edit: Image? = nil,
             forward: Image? = nil,
-            reply: Image? = nil,
             retry: Image? = nil,
             save: Image? = nil,
             select: Image? = nil,
@@ -238,10 +387,13 @@ public struct ChatTheme {
             cancelReply: Image? = nil,
             replyToMessage: Image? = nil,
             backButton: Image? = nil,
-            scrollToBottom: Image? = nil
+            scrollToBottom: Image? = nil,
+            background: Background? = nil
         ) {
             self.backButton = backButton ?? Image("backArrow", bundle: .current)
-            self.scrollToBottom = scrollToBottom ?? Image("scrollToBottom", bundle: .current)
+            self.scrollToBottom = scrollToBottom ?? Image(systemName: "chevron.down")
+            
+            self.background = background
 
             self.attachMenu = AttachMenu(
                 camera: camera ?? Image("camera", bundle: .current),
@@ -257,6 +409,7 @@ public struct ChatTheme {
             self.inputView = InputView(
                 add: add ?? Image("add", bundle: .current),
                 arrowSend: arrowSend ?? Image("arrowSend", bundle: .current),
+                sticker: sticker ?? Image("sticker", bundle: .current),
                 attach: attach ?? Image("attach", bundle: .current),
                 attachCamera: attachCamera ?? Image("attachCamera", bundle: .current),
                 microphone: microphone ?? Image("microphone", bundle: .current)
@@ -272,26 +425,26 @@ public struct ChatTheme {
             self.mediaPicker = MediaPicker(
                 chevronDown: chevronDown ?? Image("chevronDown", bundle: .current),
                 chevronRight: chevronRight ?? Image("chevronRight", bundle: .current),
-                cross: cross ?? Image("cross", bundle: .current)
+                cross: cross ?? Image(systemName: "xmark")
             )
 
             self.message = Message(
                 attachedDocument: attachedDocument ?? Image("attachedDocument", bundle: .current),
-                checkmarks: checkmarks ?? Image("checkmarks", bundle: .current),
-                error: error ?? Image("error", bundle: .current),
+                error: error ?? Image(systemName: "exclamationmark.circle.fill"),
                 muteVideo: muteVideo ?? Image("muteVideo", bundle: .current),
                 pauseAudio: pauseAudio ?? Image("pauseAudio", bundle: .current),
                 pauseVideo: pauseVideo ?? Image(systemName: "pause.circle.fill"),
                 playAudio: playAudio ?? Image("playAudio", bundle: .current),
                 playVideo: playVideo ?? Image(systemName: "play.circle.fill"),
-                sending: sending ?? Image("sending", bundle: .current)
+                read: read ?? Image(systemName: "checkmark.circle.fill"),
+                sending: sending ?? Image(systemName: "clock"),
+                sent: sent ?? Image(systemName: "checkmark.circle")
             )
 
             self.messageMenu = MessageMenu(
                 delete: delete ?? Image("delete", bundle: .current),
                 edit: edit ?? Image("edit", bundle: .current),
                 forward: forward ?? Image("forward", bundle: .current),
-                reply: reply ?? Image("reply", bundle: .current),
                 retry: retry ?? Image("retry", bundle: .current),
                 save: save ?? Image("save", bundle: .current),
                 select: select ?? Image("select", bundle: .current)
@@ -301,16 +454,24 @@ public struct ChatTheme {
                 cancelRecord: cancelRecord ?? Image("cancelRecord", bundle: .current),
                 deleteRecord: deleteRecord ?? Image("deleteRecord", bundle: .current),
                 lockRecord: lockRecord ?? Image("lockRecord", bundle: .current),
-                pauseRecord: pauseRecord ?? Image("pauseRecord", bundle: .current),
-                playRecord: playRecord ?? Image("playRecord", bundle: .current),
+                pauseRecord: pauseRecord ?? Image(systemName: "pause.fill"),
+                playRecord: playRecord ?? Image(systemName: "play.fill"),
                 sendRecord: sendRecord ?? Image("sendRecord", bundle: .current),
                 stopRecord: stopRecord ?? Image("stopRecord", bundle: .current)
             )
 
             self.reply = Reply(
-                cancelReply: cancelReply ?? Image("cancelReply", bundle: .current),
-                replyToMessage: replyToMessage ?? Image("replyToMessage", bundle: .current)
+                cancelReply: cancelReply ?? Image(systemName: "x.circle"),
+                replyToMessage: replyToMessage ?? Image(systemName: "arrow.uturn.left")
             )
+        }
+    }
+    
+    public struct Style {
+        public var replyOpacity: Double
+        
+        public init(replyOpacity: Double = 0.8) {
+            self.replyOpacity = replyOpacity
         }
     }
 }

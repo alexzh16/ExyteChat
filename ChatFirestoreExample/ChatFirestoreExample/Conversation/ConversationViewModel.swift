@@ -7,7 +7,6 @@
 
 import Foundation
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 import ExyteChat
 
 @MainActor
@@ -118,10 +117,12 @@ class ConversationViewModel: ObservableObject {
                         var replyMessage: ReplyMessage?
                         if let reply = firestoreMessage.replyMessage,
                            let replyId = reply.id,
+                           let replyCreatedAt = reply.createdAt,
                            let replyUser = self.allUsers.first(where: { $0.id == reply.userId }) {
                             replyMessage = ReplyMessage(
                                 id: replyId,
-                                user: replyUser,
+                                user: replyUser, 
+                                createdAt: replyCreatedAt,
                                 text: reply.text,
                                 attachments: convertAttachments(reply.attachments),
                                 recording: convertRecording(reply.recording))
@@ -137,7 +138,9 @@ class ConversationViewModel: ObservableObject {
                             recording: convertRecording(firestoreMessage.recording),
                             replyMessage: replyMessage)
                     } ?? []
+
                 self.lock.withLock {
+                    // insert messages which are still sending
                     let localMessages = self.messages
                         .filter { $0.status != .sent }
                         .filter { localMessage in
@@ -183,17 +186,17 @@ class ConversationViewModel: ObservableObject {
                 lock.withLock {
                     if let index = messages.lastIndex(where: { $0.id == id }) {
                         messages[index].status = .error(draft)
-                        print("alisaM error ", messages)
                     }
                 }
             }
 
             /// update latest message in current conversation to be this one
             if let id = conversation?.id {
+                let sendableDict = dict.compactMapValues { $0 as? Codable }
                 try await Firestore.firestore()
                     .collection(Collection.conversations)
                     .document(id)
-                    .updateData(["latestMessage" : dict])
+                    .updateData(sendableDict)
             }
 
             /// update unread message counters for other participants
